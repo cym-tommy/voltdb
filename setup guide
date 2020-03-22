@@ -1,0 +1,49 @@
+설치 요구사항
+1. K8s클러스터 구성
+2. Storage Class를 통해 Dynamic하게 PV가 생성될 수 있도록 구성 (StatefulSet 지원을 위한 설정)
+  - 테스트 환경에서는 Master에 nfs-server 설정해서 구성
+  - Worker node엔 nfs-clinet 설정필요
+  
+helm chart 위치
+wget https://sangkyu-test.github.io/helm-chart-repo/stable/voltdb-0.1.0.tgz
+
+테스트 된 컨테이너 이미지 위치
+rokmclsk/test
+
+해당 컨네이너 이미지 생성할 때 수정한 파일도 git에 올렸습니다.
+config_template.cfg
+Dockerfile
+
+예제 어플리케이션을 통한 구동테스트
+테스트가 필요한 pod(ip/hostname)정보를 Master /etc/hosts에 설정필요
+
+1. 구동테스트를 실행할 컨테이너에 접속해서 스키마 로딩 
+kubectl exec -it <pod hostname> -- bash
+cd voltdb-ent-9.2.2/examples/voter
+../../bin/sqlcmd --servers=<pod hostname> < ddl.sql
+
+2. run.sh에서 수정이 필요한 부분(--servers=<pod name>)
+vi run.sh
+...
+function async-benchmark() {
+    jars-ifneeded
+    java -classpath voter-client.jar:$CLIENTCLASSPATH voter.AsyncBenchmark \
+        --displayinterval=5 \
+        --warmup=5 \
+        --duration=120 \
+        --servers=<voltdb-0,voltdb-1,voltdb-2> \       
+        --contestants=6 \
+        --maxvotes=2
+}
+...
+3. web 실행명령어
+./run.sh webserver
+
+4. 어플리케이션 실행 명령어
+./run.sh client
+
+5. web접속을 위한 voltdb 컨테이너와의 터널링 설정
+   - localhost <-> 컨테이너 아이피
+   - localhost:8081
+   
+
